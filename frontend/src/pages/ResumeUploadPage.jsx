@@ -22,9 +22,9 @@ import { useApp } from '../context/AppContext';
 export const ResumeUploadPage = () => {
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [targetRole, setTargetRole] = useState('Senior Full Stack Engineer');
-  const [experience, setExperience] = useState('Senior (5-8 years)');
-  const [skills, setSkills] = useState(['React', 'Node.js', 'Express', 'MongoDB', 'TypeScript']);
+  const [targetRole, setTargetRole] = useState('');
+  const [experience, setExperience] = useState('Intermediate (1–3 years)');
+  const [skills, setSkills] = useState(['Communication', 'Problem Solving', 'Leadership']);
   const [customSkill, setCustomSkill] = useState('');
   const [jobDescription, setJobDescription] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
@@ -240,34 +240,42 @@ export const ResumeUploadPage = () => {
               <span>Step 2: Target Criteria</span>
             </h3>
 
-            {/* Target Role Dropdown */}
+            {/* Target Job Role Free-text Input */}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">Target Role Title</label>
-              <select
+              <label className="text-xs font-medium text-slate-300">Target Job Role</label>
+              <input
+                type="text"
                 value={targetRole}
                 onChange={(e) => setTargetRole(e.target.value)}
-                className="w-full bg-[#0a0e1c] border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
-              >
-                <option value="Senior Full Stack Engineer">Senior Full Stack Engineer (MERN)</option>
-                <option value="Lead Frontend Engineer (React)">Lead Frontend Engineer (React)</option>
-                <option value="Backend Node.js & Distributed Systems">Backend Node.js & Distributed Systems</option>
-                <option value="System Design & Cloud Architect">System Design & Cloud Architect</option>
-                <option value="Junior Software Developer">Junior Full Stack Developer</option>
-              </select>
+                placeholder="e.g. English Teacher, Accountant, HR Manager, Software Developer..."
+                className="w-full bg-[#0a0e1c] border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500 placeholder-slate-500"
+              />
+              <div className="flex flex-wrap gap-1 pt-1">
+                {['English Teacher', 'Accountant', 'HR Manager', 'Marketing Executive', 'MERN Stack Developer', 'Mechanical Engineer'].map((role) => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => setTargetRole(role)}
+                    className="text-[10px] px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:border-purple-500/50 transition-colors"
+                  >
+                    {role}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Seniority Level */}
+            {/* Experience Level */}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">Experience Seniority</label>
+              <label className="text-xs font-medium text-slate-300">Experience Level</label>
               <select
                 value={experience}
                 onChange={(e) => setExperience(e.target.value)}
                 className="w-full bg-[#0a0e1c] border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
               >
-                <option value="Entry / Junior (0-2 years)">Entry / Junior (0-2 years)</option>
-                <option value="Mid-Level (2-5 years)">Mid-Level (2-5 years)</option>
-                <option value="Senior (5-8 years)">Senior (5-8 years)</option>
-                <option value="Staff / Principal (8+ years)">Staff / Principal (8+ years)</option>
+                <option value="Beginner / Fresher (0 years)">Beginner / Fresher (0 years)</option>
+                <option value="Intermediate (1–3 years)">Intermediate (1–3 years)</option>
+                <option value="Experienced (3–5 years)">Experienced (3–5 years)</option>
+                <option value="Senior (5+ years)">Senior (5+ years)</option>
               </select>
             </div>
 

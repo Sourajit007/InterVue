@@ -111,17 +111,21 @@ export const AppProvider = ({ children }) => {
    * Generate a new interview session with personalized questions.
    * @param {string} difficulty - 'Beginner' | 'Intermediate' | 'Advanced'
    */
-  const generateInterview = async (difficulty = 'Intermediate') => {
+  const generateInterview = async (difficulty = 'Intermediate', options = {}) => {
     setUserAnswers({});
     setProctoringEvents([]);
     setInterviewInProgress(true);
 
+    const activeRole = options.role || resumeData?.targetRole || 'Professional Specialist';
+    const activeExp = options.experienceLevel || 'Intermediate (1–3 years)';
+
     try {
       const res = await apiGenerateInterview({
         difficulty,
-        role: resumeData?.targetRole || 'Senior Full Stack Engineer',
-        resumeId: resumeData?._id,
-        resumeData: resumeData || null,
+        role: activeRole,
+        experienceLevel: activeExp,
+        resumeId: options.resumeId || resumeData?._id,
+        resumeData: options.resumeData || resumeData || null,
       });
       if (res?.questions && res.questions.length > 0) {
         setCurrentQuestions(res.questions);

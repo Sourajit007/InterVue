@@ -78,7 +78,13 @@ const standardQuestions = [
  */
 export const generateInterviewSession = async (req, res) => {
   try {
-    const { resumeId, difficulty = 'Intermediate', role: explicitRole, resumeData: explicitResumeData } = req.body;
+    const {
+      resumeId,
+      difficulty = 'Intermediate',
+      role: explicitRole,
+      experienceLevel = 'Intermediate (1–3 years)',
+      resumeData: explicitResumeData,
+    } = req.body;
 
     // Attempt to load resume data for personalization
     let resumeData = explicitResumeData || null;
@@ -102,6 +108,7 @@ export const generateInterviewSession = async (req, res) => {
       resumeData,
       difficulty,
       role,
+      experienceLevel,
     });
 
     // Persist as an Interview session document

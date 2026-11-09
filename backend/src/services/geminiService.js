@@ -361,14 +361,55 @@ export const analyzeResumeWithGemini = async (extractedText, targetRole = 'Profe
  * - 1 HR/Behavioral Question
  * Calibrated to: Beginner, Intermediate, or Advanced
  */
+/**
+ * Infer professional domain from target role title
+ */
+const inferDomainFromRole = (role = '') => {
+  const r = (role || '').toLowerCase();
+  if (r.includes('teacher') || r.includes('educat') || r.includes('english') || r.includes('instructor') || r.includes('faculty') || r.includes('professor') || r.includes('pedagog')) {
+    return 'Education';
+  }
+  if (r.includes('account') || r.includes('finance') || r.includes('tax') || r.includes('audit') || r.includes('bookkeep') || r.includes('cpa') || r.includes('banking')) {
+    return 'Finance';
+  }
+  if (r.includes('market') || r.includes('seo') || r.includes('growth') || r.includes('brand') || r.includes('content') || r.includes('copywrit') || r.includes('social media')) {
+    return 'Marketing';
+  }
+  if (r.includes('hr') || r.includes('human resource') || r.includes('talent') || r.includes('recruit') || r.includes('people ops') || r.includes('staffing')) {
+    return 'Human Resources';
+  }
+  if (r.includes('mechanical') || r.includes('civil') || r.includes('electrical') || r.includes('aerospace') || r.includes('hardware') || r.includes('cad') || r.includes('manufacturing')) {
+    return 'Engineering';
+  }
+  if (r.includes('nurse') || r.includes('doctor') || r.includes('health') || r.includes('clinic') || r.includes('pharmac') || r.includes('medical')) {
+    return 'Healthcare';
+  }
+  if (r.includes('develop') || r.includes('software') || r.includes('mern') || r.includes('frontend') || r.includes('backend') || r.includes('full stack') || r.includes('fullstack') || r.includes('programmer') || r.includes('coder') || r.includes('devops') || r.includes('cloud')) {
+    return 'IT / Software';
+  }
+  return 'General Professional';
+};
+
+/**
+ * Generate EXACTLY 5 Personalized Questions based on Candidate's Resume:
+ * - Supports ALL professional domains (IT, Finance, Marketing, HR, Engineering, Healthcare, etc.)
+ * - 2 Domain/Technical Questions
+ * - 2 Project/Experience Questions
+ * - 1 HR/Behavioral Question
+ * Calibrated to: Beginner, Intermediate, or Advanced
+ */
 export const generatePersonalizedInterviewQuestions = async ({
   resumeData,
   difficulty = 'Intermediate',
   role = 'Professional Specialist',
+  experienceLevel = 'Intermediate (1–3 years)',
 }) => {
-  const domain = resumeData?.professionalDomain || 'General';
+  const targetRole = role || resumeData?.targetRole || resumeData?.professionalDomain || 'Professional Specialist';
+  const targetExp = experienceLevel || resumeData?.experienceLevel || 'Intermediate (1–3 years)';
+  const domain = (resumeData?.professionalDomain && resumeData.professionalDomain !== 'General')
+    ? resumeData.professionalDomain
+    : inferDomainFromRole(targetRole);
   const candidateName = resumeData?.candidateName || 'Candidate';
-  const targetRole = resumeData?.targetRole || role || 'Professional Specialist';
   const education = resumeData?.education || [];
   const certifications = resumeData?.certifications || [];
   const skills = resumeData?.skills && resumeData.skills.length > 0
@@ -379,13 +420,13 @@ export const generatePersonalizedInterviewQuestions = async ({
     ? resumeData.projects
     : [
       {
-        title: `${domain} Strategic Initiative`,
-        description: `Delivered high-impact optimization in ${domain} operations.`,
+        title: `${targetRole} Strategic Initiative`,
+        description: `Delivered high-impact optimization in ${targetRole} operations.`,
         technologies: skills.slice(0, 3),
       },
       {
-        title: `${domain} Process Re-engineering`,
-        description: `Spearheaded cross-functional execution and measurable efficiency lift.`,
+        title: `${targetRole} Deliverable Framework`,
+        description: `Spearheaded execution and measurable performance lift.`,
         technologies: skills.slice(1, 4),
       },
     ];
@@ -396,8 +437,8 @@ export const generatePersonalizedInterviewQuestions = async ({
       {
         role: targetRole,
         company: 'Apex Solutions Group',
-        duration: '2022 - Present',
-        description: `Managed ${domain} deliverables, team alignment, and operational KPIs.`,
+        duration: targetExp.includes('Fresher') || targetExp.includes('0') ? 'Recent' : '2022 - Present',
+        description: `Handled ${targetRole} deliverables, team collaboration, and key performance objectives.`,
       },
     ];
 
@@ -413,16 +454,17 @@ export const generatePersonalizedInterviewQuestions = async ({
         },
       });
 
-      const educationSummary = education.map((e) => `${e.degree || ''} at ${e.institution || ''} (${e.year || ''})`).join('; ') || 'Professional Degree';
+      const educationSummary = education.map((e) => `${e.degree || ''} at ${e.institution || ''} (${e.year || ''})`).join('; ') || 'Relevant Degree';
       const certificationsSummary = certifications.join(', ') || 'Professional credentials';
 
       const prompt = `
-        You are an expert Executive Interviewer and Senior Hiring Bar Raiser conducting a rigorous, highly personalized interview for candidate ${candidateName}.
+        You are an expert Executive Interviewer and Senior Hiring Bar Raiser conducting an interview for candidate ${candidateName}.
         
-        CANDIDATE PROFILE:
+        CANDIDATE PARAMETERS:
+        - Target Job Role: "${targetRole}"
+        - Experience Level: "${targetExp}" (e.g. Beginner/Fresher (0 years), Intermediate (1–3 years), Experienced (3–5 years), Senior (5+ years))
+        - Difficulty Setting: "${difficulty}" (Beginner | Intermediate | Advanced)
         - Professional Domain: "${domain}"
-        - Target Role: "${targetRole}"
-        - Selected Difficulty: "${difficulty}" (Beginner | Intermediate | Advanced)
         - Education: ${educationSummary}
         - Certifications: ${certificationsSummary}
         - Core Skills: ${skills.join(', ')}
@@ -432,17 +474,18 @@ export const generatePersonalizedInterviewQuestions = async ({
           ${experience.map((e, i) => `${i + 1}. ${e.role} at ${e.company} (${e.duration}): ${e.description}`).join('\n')}
 
         CRITICAL REQUIREMENTS:
-        1. All 5 questions MUST be strictly tailored to the candidate's professional domain (${domain}) and target role (${targetRole}).
-        2. DO NOT generate software development, programming, or coding questions if the candidate is in a non-IT field (such as Finance, Marketing, Human Resources, Engineering, Healthcare, Sales, or Management).
-        3. Calibrate question complexity strictly to "${difficulty}" level:
-           - Beginner: Core terminology, fundamentals, methodologies, and basic situational scenarios.
-           - Intermediate: Real-world trade-offs, variance handling, optimization, and practical execution.
-           - Advanced: Executive strategy, risk management, crisis leadership, and complex cross-functional challenges.
+        1. All 5 questions MUST be 100% relevant to the target job role "${targetRole}" and calibrated to the candidate's experience level "${targetExp}" and difficulty "${difficulty}".
+        2. NEVER generate software development, coding, or programming questions unless the target job role is specifically an IT/Software position!
+           - For "English Teacher": Ask about pedagogical methods (e.g. communicative language teaching, inductive grammar instruction), classroom management of mixed-ability students, lesson planning, student assessment rubrics, and handling parent communication.
+           - For "Accountant": Ask about GAAP/IFRS accounting standards, cash vs accrual, tax depreciation, month-end balance sheet reconciliation, internal audit controls, and cross-departmental financial reporting.
+           - For "MERN Stack Developer": Ask about React state/virtual DOM, asynchronous Node.js event loops, MongoDB compound indexing (ESR rules), system design, and managing technical debt.
+           - For ANY other role: Deeply reflect that profession's actual on-the-job duties, daily challenges, and competencies.
+        3. Calibrate question complexity strictly to "${difficulty}" difficulty and "${targetExp}".
         4. Generate EXACTLY 5 questions:
-           - Question 1 (Technical/Domain Knowledge): Core domain theories, fundamental competencies, or regulatory/methodological standards.
-           - Question 2 (Technical/Domain Practical Scenario): Realistic problem-solving or crisis execution scenario specific to their profession.
-           - Question 3 (Project-related): Direct question citing Project 1 ("${projects[0]?.title || 'Key Initiative'}"), asking about their contribution, methodologies, and quantifiable results.
-           - Question 4 (Project-related / Work Experience): Direct question citing Project 2 ("${(projects[1] || projects[0])?.title}") or their work at "${experience[0]?.company || 'their organization'}", probing risk management, stakeholder trade-offs, or optimization.
+           - Question 1 (Technical/Domain Knowledge): Core domain theories, fundamental competencies, regulations, or tools of "${targetRole}".
+           - Question 2 (Technical/Practical Scenario): Realistic on-the-job problem solving or situational challenge for "${targetRole}".
+           - Question 3 (Project-related): Detailed question citing Project 1 ("${projects[0]?.title || 'Key Project'}"), asking about execution methodology, KPIs, and results.
+           - Question 4 (Project-related / Work Experience): Question citing Project 2 ("${(projects[1] || projects[0])?.title || 'Key Deliverable'}") or their work at "${experience[0]?.company || 'their organization'}", probing trade-offs, obstacles, or optimization.
            - Question 5 (HR / Behavioral): A STAR behavioral question testing workplace conflict resolution, cross-functional collaboration, deadline management, or leadership.
 
         Return a strict JSON array of 5 objects matching this exact format:
@@ -450,10 +493,10 @@ export const generatePersonalizedInterviewQuestions = async ({
           {
             "id": 1,
             "type": "Technical",
-            "category": "Domain: Core Knowledge",
+            "category": "${targetRole}: Core Knowledge",
             "difficulty": "${difficulty}",
             "question": "The interview question",
-            "context": "Context explaining why this tests their resume claims",
+            "context": "Context explaining why this tests core competence for ${targetRole}",
             "hint": "Interviewer hint without spoiling the answer",
             "expectedKeyPoints": ["Point 1", "Point 2", "Point 3"],
             "sampleIdealAnswer": "Comprehensive model answer showing master-level clarity"
@@ -461,7 +504,7 @@ export const generatePersonalizedInterviewQuestions = async ({
           {
             "id": 2,
             "type": "Technical",
-            "category": "Domain: Practical Scenario",
+            "category": "${targetRole}: Practical Scenario",
             "difficulty": "${difficulty}",
             "question": "The interview question",
             "context": "Context explaining why this tests practical execution",
@@ -529,6 +572,7 @@ export const generatePersonalizedInterviewQuestions = async ({
     projects,
     experience,
     difficulty,
+    experienceLevel: targetExp,
   });
 };
 
@@ -543,15 +587,144 @@ const buildResumeTailoredQuestions = ({
   projects = [],
   experience = [],
   difficulty = 'Intermediate',
+  experienceLevel = 'Intermediate (1–3 years)',
 }) => {
   const p1 = projects[0]?.title || 'Primary Project Initiative';
   const p2 = projects[1]?.title || projects[0]?.title || 'Secondary Initiative';
   const primarySkill = skills[0] || 'Core Methodology';
   const secondarySkill = skills[1] || 'Domain Analysis';
   const expCompany = experience[0]?.company || 'your previous organization';
+  const lowerRole = (role || '').toLowerCase();
+  const effectiveDomain = (domain && domain !== 'General') ? domain : inferDomainFromRole(role || '');
+
+  // Role 1: English Teacher / Educator
+  if (lowerRole.includes('teacher') || lowerRole.includes('educat') || lowerRole.includes('english') || lowerRole.includes('pedagogy') || effectiveDomain === 'Education') {
+    return [
+      {
+        id: 1,
+        type: 'Technical',
+        category: 'English Pedagogy & Grammar Instruction',
+        difficulty,
+        question: difficulty === 'Beginner' || experienceLevel.includes('Fresher') || experienceLevel.includes('0')
+          ? 'What are the foundational differences between deductive and inductive grammar teaching approaches, and how do you introduce new syntax to beginner learners?'
+          : 'How do you incorporate Communicative Language Teaching (CLT) and Task-Based Learning (TBL) frameworks to transition students from passive comprehension to active spoken fluency?',
+        context: 'Assesses core English pedagogical frameworks, grammatical accuracy, and communicative methodology.',
+        hint: 'Focus on student talking time (STT) versus teacher talking time (TTT) and elicitation techniques.',
+        expectedKeyPoints: ['Inductive vs deductive grammar instruction', 'Communicative Language Teaching (CLT)', 'Maximizing student speaking time'],
+        sampleIdealAnswer: 'In Communicative Language Teaching, grammar is introduced through authentic communicative contexts rather than rote memorization. Inductive learning allows students to discover rules from reading samples, followed by guided practice and communicative production.',
+      },
+      {
+        id: 2,
+        type: 'Technical',
+        category: 'Classroom Management & Mixed-Ability Scenarios',
+        difficulty,
+        question: 'Imagine you have a classroom of 25 students where five students are advanced and finish reading exercises early, while eight students struggle with basic sentence construction. How do you differentiate instruction and manage classroom dynamics without isolating any group?',
+        context: 'Evaluates tiered lesson planning, inclusive classroom management, and differentiated learning.',
+        hint: 'Discuss tiered task sheets, peer scaffolding, extension activities, and formative checks.',
+        expectedKeyPoints: ['Differentiated learning tiers', 'Scaffolding for struggling students', 'Enrichment/extension tasks for early finishers'],
+        sampleIdealAnswer: 'I use tiered learning objectives: all students work on the core grammar concept, but tasks are scaffolded with sentence starters for struggling learners, while advanced students receive creative extension prompts or peer-coaching responsibilities.',
+      },
+      {
+        id: 3,
+        type: 'Project',
+        category: `Curriculum: ${(projects[0]?.title || 'Lesson Plan Design').slice(0, 25)}`,
+        difficulty,
+        question: `In your teaching project or lesson unit "${projects[0]?.title || 'Interactive Reading & Writing Unit'}", how did you design the learning progression from reading analysis to independent creative writing?`,
+        context: 'Probes curriculum design, student engagement, and structured lesson sequencing.',
+        hint: 'Outline the sequence: Hook, pre-reading vocabulary, guided analysis, peer drafting, and revision.',
+        expectedKeyPoints: ['Structured lesson progression', 'Vocabulary pre-teaching', 'Scaffolded writing rubric'],
+        sampleIdealAnswer: 'We structured the unit using the Gradual Release of Responsibility (I do, We do, You do). We analyzed mentor texts, scaffolded vocabulary through semantic mapping, and concluded with peer-reviewed writing portfolios evaluated against an analytic rubric.',
+      },
+      {
+        id: 4,
+        type: 'Project',
+        category: `Assessment: ${((projects[1] || projects[0])?.title || 'Student Assessment Framework').slice(0, 25)}`,
+        difficulty,
+        question: `Regarding "${(projects[1] || projects[0])?.title || 'Student Assessment'}", how do you design formative versus summative assessment rubrics to measure literacy progress without demotivating struggling students?`,
+        context: 'Assesses assessment literacy, constructive feedback mechanisms, and growth mindset orientation.',
+        hint: 'Highlight diagnostic formative assessments (exit tickets, quick writes) alongside standardized evaluations.',
+        expectedKeyPoints: ['Formative checks (exit tickets, spot-checks)', 'Actionable criterion-referenced feedback', 'Fostering a growth mindset'],
+        sampleIdealAnswer: 'I prioritize frequent, low-stakes formative assessments such as daily exit tickets and targeted self-corrections. For summative grading, clear analytic rubrics assess clarity, structure, and expression separately so students receive actionable growth areas.',
+      },
+      {
+        id: 5,
+        type: 'HR',
+        category: 'Behavioral & Parent/Admin Communication',
+        difficulty,
+        question: `Describe a situation where a concerned parent or school administrator questioned your grading fairness or curriculum rigor. How did you handle the conversation and build constructive alignment?`,
+        context: 'Tests interpersonal diplomacy, empathetic communication, and professional objectivity under scrutiny.',
+        hint: 'Use the STAR format: Explain how objective rubric data and clear empathy de-escalated the concern.',
+        expectedKeyPoints: ['STAR format', 'Data-driven grading transparency', 'Empathetic collaborative partnership with parents'],
+        sampleIdealAnswer: 'When a parent felt their child was graded too harshly on an essay, I scheduled an in-person meeting and walked through the rubric alongside the student work. I highlighted the child strengths first, clarified specific growth targets, and offered a structured revision opportunity, turning anxiety into a supportive partnership.',
+      },
+    ];
+  }
+
+  // Role 2: Accountant / Accounting
+  if (lowerRole.includes('account') || lowerRole.includes('cpa') || lowerRole.includes('tax') || lowerRole.includes('audit')) {
+    return [
+      {
+        id: 1,
+        type: 'Technical',
+        category: 'GAAP / IFRS Accounting Principles',
+        difficulty,
+        question: difficulty === 'Beginner' || experienceLevel.includes('Fresher') || experienceLevel.includes('0')
+          ? 'Can you explain the core differences between cash and accrual accounting, and how the matching principle ensures accurate financial period statements?'
+          : 'Can you walk through revenue recognition criteria under ASC 606 / IFRS 15, specifically detailing how you identify performance obligations and allocate transaction prices?',
+        context: 'Assesses technical accounting standards, financial reporting frameworks, and compliance accuracy.',
+        hint: 'Focus on the five-step revenue model and matching expenses to incurred revenues.',
+        expectedKeyPoints: ['Accrual matching principle', 'Five-step ASC 606 revenue recognition', 'Preventing premature recognition'],
+        sampleIdealAnswer: 'Under ASC 606, revenue is recognized when performance obligations are satisfied by transferring control of goods or services. Accrual accounting requires expenses to be matched with the revenues they helped generate in the same reporting period.',
+      },
+      {
+        id: 2,
+        type: 'Technical',
+        category: 'Reconciliation & Anomaly Investigation',
+        difficulty,
+        question: 'During month-end close, you discover a $25,000 unreconciled variance between the general ledger cash account and the bank statement. How do you systematically trace and resolve the discrepancy under tight closing deadlines?',
+        context: 'Evaluates ledger reconciliation methodology, audit trail tracing, and error isolation under pressure.',
+        hint: 'Check timing differences (deposits in transit, outstanding checks), bank charges, and duplicate entries.',
+        expectedKeyPoints: ['Deposits in transit & outstanding checks', 'Automated transaction clearing', 'Root-cause ledger adjustment'],
+        sampleIdealAnswer: 'I review outstanding checks and deposits in transit first. Next, I compare ERP journal entries against bank settlement logs to identify duplicated or transposed transactions, post adjusting entries with full documentation, and clear the variance.',
+      },
+      {
+        id: 3,
+        type: 'Project',
+        category: `Project: ${(projects[0]?.title || 'Financial Reporting Close').slice(0, 25)}`,
+        difficulty,
+        question: `In your accounting project or engagement "${projects[0]?.title || 'Month-End Close Optimization'}", what internal controls or automation did you implement to accelerate reporting without compromising accuracy?`,
+        context: 'Evaluates hands-on ownership of accounting procedures and close acceleration.',
+        hint: 'Discuss checklist governance, automated bank feeds, or spreadsheet audit controls.',
+        expectedKeyPoints: ['Automated reconciliations', 'Checklist & review governance', 'Cycle time reduction'],
+        sampleIdealAnswer: 'In our month-end close project, we standardized account reconciliation schedules and implemented automated bank transaction feeds, reducing the close cycle from 9 days to 4 business days while eliminating manual transposition errors.',
+      },
+      {
+        id: 4,
+        type: 'Project',
+        category: `Compliance: ${((projects[1] || projects[0])?.title || 'Tax & Audit Preparation').slice(0, 25)}`,
+        difficulty,
+        question: `Regarding "${(projects[1] || projects[0])?.title || 'Audit & Tax Schedule'}", how do you maintain robust audit trails and ensure proper segregation of duties between authorization and recording?`,
+        context: 'Assesses risk mitigation, Sarbanes-Oxley / audit compliance, and fraud prevention controls.',
+        hint: 'Highlight segregation of duties, multi-tier approvals, and immutable audit logs.',
+        expectedKeyPoints: ['Segregation of duties', 'Approval hierarchy and delegation limits', 'External auditor PBC readiness'],
+        sampleIdealAnswer: 'We enforced strict segregation of duties so that individuals creating invoices or journal entries cannot approve payments. All ledger entries retain immutable audit stamps, making annual audit PBC requests seamless.',
+      },
+      {
+        id: 5,
+        type: 'HR',
+        category: 'Behavioral & Cross-Departmental Close',
+        difficulty,
+        question: `Describe a situation at ${expCompany} where an operational department head delayed submitting required expense reports or accrual figures, jeopardizing your company close deadline. How did you resolve it?`,
+        context: 'Tests interpersonal assertiveness, deadline diplomacy, and operational cross-functional partnership.',
+        hint: 'Use the STAR format: Frame financial deadlines around corporate compliance and executive visibility.',
+        expectedKeyPoints: ['STAR format', 'Diplomatic escalation and support', 'Preventing recurrence via clear SLAs'],
+        sampleIdealAnswer: 'When a regional sales director delayed quarterly expense submittals, I held a quick call to offer assistance with expense reconciliation, explaining how the delay impacted executive board reporting. We submitted on time and instituted a simplified automated portal for future quarters.',
+      },
+    ];
+  }
 
   // 1. Finance Domain
-  if (domain === 'Finance') {
+  if (effectiveDomain === 'Finance' || lowerRole.includes('finance')) {
     return [
       {
         id: 1,
@@ -614,7 +787,7 @@ const buildResumeTailoredQuestions = ({
   }
 
   // 2. Marketing Domain
-  if (domain === 'Marketing') {
+  if (effectiveDomain === 'Marketing' || lowerRole.includes('market') || lowerRole.includes('seo')) {
     return [
       {
         id: 1,
@@ -677,7 +850,7 @@ const buildResumeTailoredQuestions = ({
   }
 
   // 3. Human Resources & Management Domain
-  if (domain === 'Human Resources' || domain === 'Management') {
+  if (effectiveDomain === 'Human Resources' || effectiveDomain === 'Management' || lowerRole.includes('hr') || lowerRole.includes('talent') || lowerRole.includes('recruit')) {
     return [
       {
         id: 1,
@@ -740,7 +913,7 @@ const buildResumeTailoredQuestions = ({
   }
 
   // 4. Engineering (Mechanical / Civil / Hardware) Domain
-  if (domain === 'Engineering') {
+  if (effectiveDomain === 'Engineering' || lowerRole.includes('mechanical') || lowerRole.includes('civil') || lowerRole.includes('hardware') || lowerRole.includes('electrical')) {
     return [
       {
         id: 1,
@@ -802,66 +975,129 @@ const buildResumeTailoredQuestions = ({
     ];
   }
 
-  // 5. Software Engineering / IT Domain (Default)
+  // 5. Software Engineering / IT Domain
+  if (effectiveDomain === 'IT / Software' || lowerRole.includes('software') || lowerRole.includes('developer') || lowerRole.includes('mern') || lowerRole.includes('frontend') || lowerRole.includes('backend') || lowerRole.includes('full stack') || lowerRole.includes('fullstack') || lowerRole.includes('coding') || lowerRole.includes('programmer') || lowerRole.includes('devops')) {
+    return [
+      {
+        id: 1,
+        type: 'Technical',
+        category: `${primarySkill} Architecture`,
+        difficulty,
+        question: difficulty === 'Beginner'
+          ? `In your work with ${primarySkill}, can you explain the core component lifecycle, how state differs from props, and how re-renders are triggered?`
+          : `How do you architect complex state management and concurrency in ${primarySkill} to avoid redundant re-renders, and what are the performance trade-offs of modern reactivity frameworks?`,
+        context: `Tests foundational and architectural understanding of ${primarySkill}.`,
+        hint: `Discuss unidirectional data flow, component memoization, and selective subscription reactivity.`,
+        expectedKeyPoints: ['State collocation and reactivity', 'Memoization and virtual DOM diffing', 'Trade-offs between state patterns'],
+        sampleIdealAnswer: `In ${primarySkill}, state should be collocated as close to consuming components as possible. We separate high-frequency local state from global stores and use selective subscriptions to prevent widespread cascading re-renders.`,
+      },
+      {
+        id: 2,
+        type: 'Technical',
+        category: `${secondarySkill} & Scalable Systems`,
+        difficulty,
+        question: difficulty === 'Beginner'
+          ? `How do you implement asynchronous request handling, error handling middleware, and data validation in backend APIs?`
+          : `How do you architect database query indexing (e.g. ESR rules), connection pooling, and asynchronous event processing to withstand high-concurrency traffic surges?`,
+        context: `Evaluates backend resilience, query optimization, and runtime stability.`,
+        hint: `Discuss compound index structure, connection saturation limits, and asynchronous message offloading.`,
+        expectedKeyPoints: ['Equality, Sort, Range (ESR) index design', 'Connection pool tuning', 'Asynchronous worker delegation'],
+        sampleIdealAnswer: `We apply the ESR rule to compound indexes so MongoDB traverses contiguous disk slices without blocking sorts. For high-concurrency endpoints, we tune connection pools and offload long-running operations to asynchronous message queues.`,
+      },
+      {
+        id: 3,
+        type: 'Project',
+        category: `Project: ${p1.slice(0, 25)}`,
+        difficulty,
+        question: `In your project "${p1}", what trade-offs did you evaluate when deciding how to structure your API contracts, authentication mechanisms, and data schemas?`,
+        context: `Assesses architectural decision-making and hands-on ownership of ${p1}.`,
+        hint: `Discuss token lifecycles, httpOnly cookies, and REST vs GraphQL schema trade-offs.`,
+        expectedKeyPoints: ['Authentication security (JWT + httpOnly cookies)', 'Schema validation layers', 'Contract predictability'],
+        sampleIdealAnswer: `In "${p1}", we paired short-lived in-memory JWTs with httpOnly SameSite=Strict refresh cookies for CSRF and XSS prevention, standardizing strict schema validation for reliable cross-service contracts.`,
+      },
+      {
+        id: 4,
+        type: 'Project',
+        category: `Project: ${p2.slice(0, 25)}`,
+        difficulty,
+        question: `Regarding "${p2}", walk me through a distributed failure mode, unexpected bug, or scalability bottleneck you diagnosed in production and how you resolved it.`,
+        context: `Evaluates real-world incident response, debugging methodology, and performance tuning in ${p2}.`,
+        hint: `Discuss distributed tracing, pagination strategies, or cache invalidation.`,
+        expectedKeyPoints: ['Root cause identification via telemetry', 'Migrating to keyset pagination or caching', 'Resilient architectural fix'],
+        sampleIdealAnswer: `In "${p2}", deep skip() pagination caused severe database read latency. We migrated to cursor keyset pagination using timestamp indices, adding Redis caching with automated TTL invalidation to cut latency by 85%.`,
+      },
+      {
+        id: 5,
+        type: 'HR',
+        category: 'Behavioral & STAR Method',
+        difficulty,
+        question: `Describe a situation at ${expCompany} where you had a disagreement with a team member or stakeholder regarding a technical decision. How did you resolve it?`,
+        context: `Evaluates interpersonal communication, constructive disagreement, and team alignment.`,
+        hint: `Use the STAR format: Explain the situation, the technical trade-off, and how you objectively aligned around shared goals.`,
+        expectedKeyPoints: ['STAR methodology', 'Relying on benchmarks/data over subjective opinion', 'Collaborative alignment'],
+        sampleIdealAnswer: `When a peer advocated an unproven database engine, I scheduled a proof-of-concept sprint benchmarking latency and operational complexity. We compared findings objectively and collaboratively chose the proven solution, delivering our project with zero migration downtime.`,
+      },
+    ];
+  }
+
+  // 6. General Professional Domain (All other professions: Healthcare, Operations, Hospitality, etc.)
   return [
     {
       id: 1,
       type: 'Technical',
-      category: `${primarySkill} Architecture`,
+      category: `${role || 'Professional'}: Core Methodology`,
       difficulty,
-      question: difficulty === 'Beginner'
-        ? `In your work with ${primarySkill}, can you explain the core component lifecycle, how state differs from props, and how re-renders are triggered?`
-        : `How do you architect complex state management and concurrency in ${primarySkill} to avoid redundant re-renders, and what are the performance trade-offs of modern reactivity frameworks?`,
-      context: `Tests foundational and architectural understanding of ${primarySkill}.`,
-      hint: `Discuss unidirectional data flow, component memoization, and selective subscription reactivity.`,
-      expectedKeyPoints: ['State collocation and reactivity', 'Memoization and virtual DOM diffing', 'Trade-offs between state patterns'],
-      sampleIdealAnswer: `In ${primarySkill}, state should be collocated as close to consuming components as possible. We separate high-frequency local state from global stores and use selective subscriptions to prevent widespread cascading re-renders.`,
+      question: difficulty === 'Beginner' || experienceLevel.includes('Fresher') || experienceLevel.includes('0')
+        ? `What are the foundational quality standards, operating principles, and professional methodologies you rely on as a ${role || 'specialist'}?`
+        : `How do you establish standard operating procedures and maintain high-fidelity performance metrics as a ${role || 'specialist'} under tight operational constraints?`,
+      context: `Assesses foundational methodology, domain competence, and operational rigor for ${role || 'the role'}.`,
+      hint: `Discuss quality standards, workflow structures, and domain best practices.`,
+      expectedKeyPoints: ['Standard operating procedures', 'Quality assurance', 'Operational best practices'],
+      sampleIdealAnswer: `As a ${role || 'specialist'}, I focus on establishing clear operating guidelines, aligning deliverables with measurable benchmarks, and conducting continuous quality reviews.`,
     },
     {
       id: 2,
       type: 'Technical',
-      category: `${secondarySkill} & Scalable Systems`,
+      category: `${role || 'Professional'}: Problem-Solving`,
       difficulty,
-      question: difficulty === 'Beginner'
-        ? `How do you implement asynchronous request handling, error handling middleware, and data validation in backend APIs?`
-        : `How do you architect database query indexing (e.g. ESR rules), connection pooling, and asynchronous event processing to withstand high-concurrency traffic surges?`,
-      context: `Evaluates backend resilience, query optimization, and runtime stability.`,
-      hint: `Discuss compound index structure, connection saturation limits, and asynchronous message offloading.`,
-      expectedKeyPoints: ['Equality, Sort, Range (ESR) index design', 'Connection pool tuning', 'Asynchronous worker delegation'],
-      sampleIdealAnswer: `We apply the ESR rule to compound indexes so MongoDB traverses contiguous disk slices without blocking sorts. For high-concurrency endpoints, we tune connection pools and offload long-running operations to asynchronous message queues.`,
+      question: `In your role as a ${role || 'specialist'}, walk me through an unexpected challenge or situational crisis you encountered. What systematic troubleshooting process did you execute?`,
+      context: `Evaluates situational judgment, critical thinking, and decisive action under pressure for ${role || 'the role'}.`,
+      hint: `Identify the root problem, consider risk factors, and communicate the resolution clearly.`,
+      expectedKeyPoints: ['Root-cause analysis', 'Decisive execution', 'Risk mitigation'],
+      sampleIdealAnswer: `When an unexpected roadblock arose, I isolated the core bottleneck, consulted relevant stakeholders to evaluate trade-offs, and deployed a targeted remediation plan that kept the initiative on schedule.`,
     },
     {
       id: 3,
       type: 'Project',
       category: `Project: ${p1.slice(0, 25)}`,
       difficulty,
-      question: `In your project "${p1}", what trade-offs did you evaluate when deciding how to structure your API contracts, authentication mechanisms, and data schemas?`,
-      context: `Assesses architectural decision-making and hands-on ownership of ${p1}.`,
-      hint: `Discuss token lifecycles, httpOnly cookies, and REST vs GraphQL schema trade-offs.`,
-      expectedKeyPoints: ['Authentication security (JWT + httpOnly cookies)', 'Schema validation layers', 'Contract predictability'],
-      sampleIdealAnswer: `In "${p1}", we paired short-lived in-memory JWTs with httpOnly SameSite=Strict refresh cookies for CSRF and XSS prevention, standardizing strict schema validation for reliable cross-service contracts.`,
+      question: `In your key initiative or project "${p1}", what primary objectives and performance indicators (KPIs) did you set, and how did you measure success?`,
+      context: `Probes practical project management, resource allocation, and measurable outcomes in ${p1}.`,
+      hint: `Discuss specific milestones, qualitative/quantitative metrics, and lessons learned.`,
+      expectedKeyPoints: ['Defined measurable KPIs', 'Resource optimization', 'Overcoming project hurdles'],
+      sampleIdealAnswer: `In "${p1}", we defined milestone-based KPIs tracking on-time delivery and stakeholder satisfaction, completing the deliverable efficiently while exceeding target quality benchmarks.`,
     },
     {
       id: 4,
       type: 'Project',
-      category: `Project: ${p2.slice(0, 25)}`,
+      category: `Deliverable: ${p2.slice(0, 25)}`,
       difficulty,
-      question: `Regarding "${p2}", walk me through a distributed failure mode, unexpected bug, or scalability bottleneck you diagnosed in production and how you resolved it.`,
-      context: `Evaluates real-world incident response, debugging methodology, and performance tuning in ${p2}.`,
-      hint: `Discuss distributed tracing, pagination strategies, or cache invalidation.`,
-      expectedKeyPoints: ['Root cause identification via telemetry', 'Migrating to keyset pagination or caching', 'Resilient architectural fix'],
-      sampleIdealAnswer: `In "${p2}", deep skip() pagination caused severe database read latency. We migrated to cursor keyset pagination using timestamp indices, adding Redis caching with automated TTL invalidation to cut latency by 85%.`,
+      question: `Regarding "${p2}", walk me through how you balanced quality requirements against tight deadlines or resource limitations.`,
+      context: `Assesses trade-off analysis, prioritization, and operational discipline in ${p2}.`,
+      hint: `Discuss scope management, delegation, and maintaining quality standards.`,
+      expectedKeyPoints: ['Prioritization matrix', 'Stakeholder transparent updates', 'Maintaining quality standards'],
+      sampleIdealAnswer: `During "${p2}", we utilized a priority matrix to separate non-negotiable requirements from nice-to-haves, ensuring that core quality remained uncompromised while hitting our deadline.`,
     },
     {
       id: 5,
       type: 'HR',
-      category: 'Behavioral & STAR Method',
+      category: 'Behavioral & Collaborative Alignment',
       difficulty,
-      question: `Describe a situation at ${expCompany} where you had a disagreement with a team member or stakeholder regarding a technical decision. How did you resolve it?`,
-      context: `Evaluates interpersonal communication, constructive disagreement, and team alignment.`,
-      hint: `Use the STAR format: Explain the situation, the technical trade-off, and how you objectively aligned around shared goals.`,
-      expectedKeyPoints: ['STAR methodology', 'Relying on benchmarks/data over subjective opinion', 'Collaborative alignment'],
-      sampleIdealAnswer: `When a peer advocated an unproven database engine, I scheduled a proof-of-concept sprint benchmarking latency and operational complexity. We compared findings objectively and collaboratively chose the proven solution, delivering our project with zero migration downtime.`,
+      question: `Describe a situation at ${expCompany} where you had to lead alignment across cross-functional team members or resolve a professional disagreement. How did you handle it?`,
+      context: `Evaluates interpersonal competence, empathy, communication, and emotional intelligence.`,
+      hint: `Use the STAR format: Explain the situation, the friction, and how you objectively aligned around shared goals.`,
+      expectedKeyPoints: ['STAR methodology', 'Active listening and empathy', 'Shared goal alignment'],
+      sampleIdealAnswer: `When team members had diverging viewpoints on priorities, I organized an alignment session where each party shared their perspective. We established shared success criteria based on organizational impact, reaching consensus and completing the project smoothly.`,
     },
   ];
 };

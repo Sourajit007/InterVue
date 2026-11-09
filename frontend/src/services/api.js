@@ -125,11 +125,11 @@ export const apiGetQuestions = async (role = 'Senior Full Stack Engineer', skill
 /**
  * Generate a personalized interview session (5 questions based on resume + difficulty)
  */
-export const apiGenerateInterview = async ({ difficulty = 'Intermediate', role, resumeId, resumeData } = {}) => {
+export const apiGenerateInterview = async ({ difficulty = 'Intermediate', role, experienceLevel, resumeId, resumeData } = {}) => {
   const res = await fetch(`${API_BASE_URL}/interviews/generate`, {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify({ difficulty, role, resumeId, resumeData }),
+    body: JSON.stringify({ difficulty, role, experienceLevel, resumeId, resumeData }),
   });
   const data = await res.json();
   if (!data.success) throw new Error(data.message || 'Failed to generate interview');
