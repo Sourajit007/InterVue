@@ -1,0 +1,26 @@
+# Environment variables
+.env
+.env.*
+*.env
+.env.local
+.env.development.local
+.env.production.local
+
+# Allow example file if any
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Production build
+dist/
+dist-ssr/
+build/
+
+# Logs
+*.log
+
+# OS & Editor
+.DS_Store
+.vscode/
+

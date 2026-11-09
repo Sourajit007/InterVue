@@ -1,0 +1,17 @@
+{
+  "name": "intervue-ai",
+  "version": "1.0.0",
+  "description": "InterVue AI - AI-Powered Technical Interview Preparation & Resume ATS Platform",
+  "scripts": {
+    "dev": "npm run start:backend & npm run dev:frontend",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "build:frontend": "npm --prefix frontend run build",
+    "start:backend": "npm --prefix backend start",
+    "stop": "lsof -ti:3000,5001 | xargs kill -9 2>/dev/null || true"
+  },
+  "keywords": ["mern", "gemini-api", "interview-prep", "ats-resume", "react", "nodejs"],
+  "author": "InterVue AI Team",
+  "license": "ISC"
+}
+
